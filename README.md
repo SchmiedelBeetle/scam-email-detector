@@ -1,4 +1,4 @@
-Scam Email Detector (V1 Prototype)
+# Scam Email Detector (V1 Prototype)
 Overview
 
 This project is a simple web-based scam detection tool.
