@@ -1,0 +1,5 @@
+Overview:
+I want to build a simple web app that helps users check whether an email or text message is a scam. The user will paste a message into the app, click “Scan,” and receive a risk score and a label like “Likely Scam” or “Likely Legit.” The app will also explain why the message was flagged.
+The project is split into two parts: a scanning engine and a web interface.
+The scanning engine is just a Python function that takes message text and checks for red flags. I grouped the red flags into categories like urgency language, credential requests, money requests, and link behavior. When a category is detected, the scanner adds a certain number of points to the risk score and also records a reason, like ‘urgent language detected’ or ‘message requests login info.’
+Then I wrap that scanner in a Streamlit web app so it’s easy to demo. Streamlit makes it simple: there’s a textbox for the message and a button to scan. When you click scan, it calls the scanner and displays the score, a label, and the reasons. This V1 doesn’t use machine learning yet—it’s meant to be a clean baseline that’s explainable and easy to improve.
