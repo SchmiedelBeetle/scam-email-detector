@@ -22,6 +22,16 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
+# =============================================================================
+# THEME OPTIONS
+# =============================================================================
+
+dark_mode = st.sidebar.checkbox(
+    "Dark mode",
+    value=False,
+    help="Enable a dark theme for the ClearShield interface.",
+)
+
 
 # =============================================================================
 # CUSTOM STYLING
@@ -29,82 +39,106 @@ st.set_page_config(
 # Streamlit's defaults look like "demo." A bit of CSS makes it look like
 # "product." Keeps brand colors consistent with the pitch deck.
 
+page_bg = "#020617" if dark_mode else "#ffffff"
+block_bg = "#0f172a" if dark_mode else "#ffffff"
+panel_bg = "#111827" if dark_mode else "#f8fafc"
+card_scam_bg = "linear-gradient(135deg, #7F1D1D 0%, #B91C1C 100%)" if dark_mode else "linear-gradient(135deg, #FEE2E2 0%, #FECACA 100%)"
+card_unsure_bg = "linear-gradient(135deg, #78350F 0%, #D97706 100%)" if dark_mode else "linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%)"
+card_legit_bg = "linear-gradient(135deg, #14532D 0%, #22C55E 100%)" if dark_mode else "linear-gradient(135deg, #DCFCE7 0%, #BBF7D0 100%)"
+text_color = "#E2E8F0" if dark_mode else "#0F172A"
+tagline_color = "#94A3B8" if dark_mode else "#64748B"
+border_color = "#334155" if dark_mode else "#E2E8F0"
+button_bg = "#1F2937" if dark_mode else "#ffffff"
+button_text = "#E2E8F0" if dark_mode else "#0F172A"
+
 st.markdown(
-    """
+    f"""
     <style>
     /* Tighten top padding */
-    .block-container {
+    .block-container {{
         padding-top: 2rem;
         padding-bottom: 2rem;
         max-width: 1300px;
-    }
+        background-color: {block_bg};
+        color: {text_color};
+    }}
 
     /* Brand header */
-    .clearshield-header {
+    .clearshield-header {{
         display: flex;
         align-items: center;
         gap: 0.75rem;
         margin-bottom: 0.25rem;
-    }
-    .clearshield-logo {
+    }}
+    .clearshield-logo {{
         font-size: 2.5rem;
-    }
-    .clearshield-title {
+    }}
+    .clearshield-title {{
         font-size: 2.2rem;
         font-weight: 700;
         color: #0F766E;
         margin: 0;
         line-height: 1;
-    }
-    .clearshield-tagline {
-        color: #64748B;
+    }}
+    .clearshield-tagline {{
+        color: {tagline_color};
         font-size: 1rem;
         margin: 0.25rem 0 1rem 0;
-    }
+    }}
 
     /* Result cards */
-    .result-card {
+    .result-card {{
         padding: 1.25rem;
         border-radius: 0.75rem;
         margin-bottom: 1rem;
-    }
-    .result-scam {
-        background: linear-gradient(135deg, #FEE2E2 0%, #FECACA 100%);
+    }}
+    .result-scam {{
+        background: {card_scam_bg};
         border-left: 6px solid #DC2626;
-    }
-    .result-unsure {
-        background: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%);
+    }}
+    .result-unsure {{
+        background: {card_unsure_bg};
         border-left: 6px solid #EAB308;
-    }
-    .result-legit {
-        background: linear-gradient(135deg, #DCFCE7 0%, #BBF7D0 100%);
+    }}
+    .result-legit {{
+        background: {card_legit_bg};
         border-left: 6px solid #16A34A;
-    }
-    .result-label {
+    }}
+    .result-label {{
         font-size: 1.5rem;
         font-weight: 700;
         margin: 0;
-    }
-    .result-score {
+    }}
+    .result-score {{
         font-size: 3rem;
         font-weight: 800;
         margin: 0.5rem 0;
         line-height: 1;
-    }
+    }}
+
+    /* Widget theme */
+    .stTextArea textarea,
+    .stSelectbox select,
+    .stButton button,
+    .stTextInput input {{
+        background-color: {button_bg} !important;
+        color: {button_text} !important;
+        border-color: {border_color} !important;
+    }}
 
     /* Preset buttons row */
-    .stButton button {
+    .stButton button {{
         border-radius: 0.5rem;
         font-weight: 500;
-    }
+    }}
 
     /* Footer */
-    .footer-text {
-        color: #94A3B8;
+    .footer-text {{
+        color: {tagline_color};
         font-size: 0.85rem;
         text-align: center;
         margin-top: 2rem;
-    }
+    }}
     </style>
     """,
     unsafe_allow_html=True,
@@ -270,7 +304,7 @@ with left_col:
         value=st.session_state.message_input,
         height=280,
         placeholder="Paste an email or text message here...",
-        key="message_text_area",
+        key="message_input",
         label_visibility="visible",
     )
 
