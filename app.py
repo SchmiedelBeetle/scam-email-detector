@@ -68,7 +68,12 @@ st.markdown(
         color: {text_color} !important;
     }}
 
-    .css-18e3th9, .css-1d391kg, .css-1y4p8pa, .css-5omu6h {{
+    html, body, .stApp, [data-testid="stAppViewContainer"], [data-testid="stMainContent"], [data-testid="stSidebar"], [data-testid="stToolbar"] {{
+        background-color: {block_bg} !important;
+        color: {text_color} !important;
+    }}
+
+    .css-18e3th9, .css-1d391kg, .css-1y4p8pa, .css-5omu6h, .css-hi6a2p, .css-17lntkn {{
         background-color: {block_bg} !important;
         color: {text_color} !important;
     }}
@@ -259,8 +264,6 @@ EXAMPLE_MESSAGES = {
 
 if "message_input" not in st.session_state:
     st.session_state.message_input = ""
-if "auto_scan" not in st.session_state:
-    st.session_state.auto_scan = False
 if "last_example" not in st.session_state:
     st.session_state.last_example = None
 
@@ -312,7 +315,6 @@ with left_col:
         if st.session_state.last_example != example_key:
             st.session_state.message_input = EXAMPLE_MESSAGES[example_key]
             st.session_state.last_example = example_key
-            st.session_state.auto_scan = True
 
     text = st.text_area(
         "Or paste your own message",
@@ -337,11 +339,8 @@ with left_col:
 with right_col:
     st.markdown("### 📊 Result")
 
-    # Trigger scan if button clicked or auto-scan flag set from example
-    should_scan = scan_clicked or st.session_state.auto_scan
-    if should_scan:
-        st.session_state.auto_scan = False  # consume flag
-
+    # Trigger scan only when the user clicks the scan button
+    should_scan = scan_clicked
     if should_scan and text.strip():
         result = scan_text(text)
         score = result["score"]
