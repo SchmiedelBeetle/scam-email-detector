@@ -54,13 +54,23 @@ button_text = "#E2E8F0" if dark_mode else "#0F172A"
 st.markdown(
     f"""
     <style>
-    /* Tighten top padding */
+    /* Force the full page to dark theme when enabled */
+    html, body, .stApp, [data-testid="stAppViewContainer"], [data-testid="stMainContent"], [data-testid="stSidebar"] {{
+        background-color: {block_bg} !important;
+        color: {text_color} !important;
+    }}
+
     .block-container {{
         padding-top: 2rem;
         padding-bottom: 2rem;
         max-width: 1300px;
-        background-color: {block_bg};
-        color: {text_color};
+        background-color: {block_bg} !important;
+        color: {text_color} !important;
+    }}
+
+    .css-18e3th9, .css-1d391kg, .css-1y4p8pa, .css-5omu6h {{
+        background-color: {block_bg} !important;
+        color: {text_color} !important;
     }}
 
     /* Brand header */
@@ -120,19 +130,24 @@ st.markdown(
     .stTextArea textarea,
     .stSelectbox select,
     .stButton button,
-    .stTextInput input {{
+    .stTextInput input,
+    .stMarkdown p,
+    .stMarkdown h1,
+    .stMarkdown h2,
+    .stMarkdown h3,
+    .stMarkdown h4,
+    .stMarkdown h5,
+    .stMarkdown h6 {{
         background-color: {button_bg} !important;
         color: {button_text} !important;
         border-color: {border_color} !important;
     }}
 
-    /* Preset buttons row */
     .stButton button {{
         border-radius: 0.5rem;
         font-weight: 500;
     }}
 
-    /* Footer */
     .footer-text {{
         color: {tagline_color};
         font-size: 0.85rem;
