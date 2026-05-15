@@ -1,12 +1,14 @@
 """
 ClearShield — Streamlit Web Interface
 
+A polished, explainable scam message detector built for everyday users.
+
 Author: Christian Schmiedel
 Project: CSUB Senior Project (CMPS) — Information Security
 """
 
 import streamlit as st
-from scanner import scan_text, highlight_suspicious, generate_scam_email
+from scanner import scan_text, highlight_suspicious
 
 
 # =============================================================================
@@ -14,162 +16,371 @@ from scanner import scan_text, highlight_suspicious, generate_scam_email
 # =============================================================================
 
 st.set_page_config(
-    page_title="ClearShield — Scam Message Detector",
+    page_title="ClearShield — Scam Detector",
     page_icon="🛡️",
-    layout="centered",
+    layout="wide",
+    initial_sidebar_state="collapsed",
 )
 
 
 # =============================================================================
-# DEMO PRESET MESSAGES
+# CUSTOM STYLING
+# =============================================================================
+# Streamlit's defaults look like "demo." A bit of CSS makes it look like
+# "product." Keeps brand colors consistent with the pitch deck.
+
+st.markdown(
+    """
+    <style>
+    /* Tighten top padding */
+    .block-container {
+        padding-top: 2rem;
+        padding-bottom: 2rem;
+        max-width: 1300px;
+    }
+
+    /* Brand header */
+    .clearshield-header {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 0.25rem;
+    }
+    .clearshield-logo {
+        font-size: 2.5rem;
+    }
+    .clearshield-title {
+        font-size: 2.2rem;
+        font-weight: 700;
+        color: #0F766E;
+        margin: 0;
+        line-height: 1;
+    }
+    .clearshield-tagline {
+        color: #64748B;
+        font-size: 1rem;
+        margin: 0.25rem 0 1rem 0;
+    }
+
+    /* Result cards */
+    .result-card {
+        padding: 1.25rem;
+        border-radius: 0.75rem;
+        margin-bottom: 1rem;
+    }
+    .result-scam {
+        background: linear-gradient(135deg, #FEE2E2 0%, #FECACA 100%);
+        border-left: 6px solid #DC2626;
+    }
+    .result-unsure {
+        background: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%);
+        border-left: 6px solid #EAB308;
+    }
+    .result-legit {
+        background: linear-gradient(135deg, #DCFCE7 0%, #BBF7D0 100%);
+        border-left: 6px solid #16A34A;
+    }
+    .result-label {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin: 0;
+    }
+    .result-score {
+        font-size: 3rem;
+        font-weight: 800;
+        margin: 0.5rem 0;
+        line-height: 1;
+    }
+
+    /* Preset buttons row */
+    .stButton button {
+        border-radius: 0.5rem;
+        font-weight: 500;
+    }
+
+    /* Footer */
+    .footer-text {
+        color: #94A3B8;
+        font-size: 0.85rem;
+        text-align: center;
+        margin-top: 2rem;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+
+# =============================================================================
+# TEST MESSAGE LIBRARY
+# =============================================================================
+# A curated set of example messages covering the major scam categories
+# documented by the FTC, Anti-Phishing Working Group, and AARP. Each entry
+# pairs a label with a sample message representative of that real-world
+# pattern. These same messages double as the test corpus for the calibration
+# study documented in the project report.
+
+EXAMPLE_MESSAGES = {
+    # --- Scam examples ---
+    "🚨 Bank account locked (phishing)": (
+        "Subject: Urgent: Your Account Has Been Locked\n\n"
+        "Dear Customer,\n\n"
+        "We noticed suspicious activity on your account. For your protection, "
+        "your account has been temporarily locked. Please click here to verify "
+        "your identity and unlock your account within 24 hours, or your account "
+        "will be permanently deleted.\n\n"
+        "Verify Account: bit.ly/account-unlock\n\n"
+        "Thanks,\nThe Security Team"
+    ),
+    "💳 Gift card scam (urgent favor)": (
+        "Hi! I hope you're doing well. I'm in a bit of a bind and need a "
+        "small favor. I'm traveling and can't get to my bank. Could you pick "
+        "up a couple of Amazon gift cards (about $200 total) and send me the "
+        "codes? I'll pay you back as soon as I'm home. Please don't tell "
+        "anyone — it's a surprise for the family. Time sensitive."
+    ),
+    "🏆 Lottery / prize scam": (
+        "CONGRATULATIONS! You have been selected as the winner of the "
+        "International Email Lottery! Your prize amount is $1,500,000 USD. "
+        "To claim your prize, please confirm your bank account number, "
+        "routing number, and a small processing fee via wire transfer. "
+        "Reply immediately — this offer expires in 48 hours."
+    ),
+    "📦 Package delivery (smishing)": (
+        "USPS NOTICE: Your package delivery is on hold due to an incomplete "
+        "address. Action required: please verify your address at "
+        "bit.ly/usps-track-pkg2024 within 24 hours or your package will be "
+        "returned to the sender."
+    ),
+    "💼 Fake job offer": (
+        "Hello, we found your resume online and you have been pre-selected "
+        "for a remote position at our company. The salary is $5,000/week. "
+        "To begin onboarding, please confirm your social security number "
+        "and bank account details for direct deposit setup. Reply within "
+        "24 hours to secure this position."
+    ),
+    "🪙 Crypto / investment scam": (
+        "Final notice — claim your free bitcoin reward today! You have been "
+        "selected for an exclusive crypto giveaway. To verify your account "
+        "and receive your $5,000 in BTC, send your wallet credentials and "
+        "a small verification fee immediately before this limited time offer "
+        "expires."
+    ),
+    "🏛️ IRS / tax refund scam": (
+        "IRS Notice: Our records show you are eligible for a tax refund of "
+        "$1,840. To process your refund, please verify your social security "
+        "number and bank routing number within 48 hours by clicking the "
+        "secure link below. Failure to respond will result in forfeiture "
+        "of your refund."
+    ),
+
+    # --- Legit examples ---
+    "✅ Meeting reminder (legit)": (
+        "Hey Christian, just a reminder that our team meeting is scheduled "
+        "for Thursday at 2pm in the conference room. Please let me know if "
+        "you can't make it. Looking forward to seeing you there.\n\n"
+        "Best,\nSarah"
+    ),
+    "✅ Family text (legit)": (
+        "Hey, dinner at mom's tomorrow at 6? She made lasagna and wants "
+        "the whole family there. Let me know if you can make it. Love you."
+    ),
+    "✅ Order confirmation (legit)": (
+        "Thanks for your order! Your shipment from BookHaven is on its way. "
+        "Tracking number: BH-2026-58291. Estimated delivery: May 18. You "
+        "can view your full order details by signing in to your account at "
+        "bookhaven.com. Thank you for shopping with us."
+    ),
+    "⚠️ Urgent legit (deadline)": (
+        "Hi team, this is urgent — the deadline for the quarterly report "
+        "has moved up to Friday. Please prioritize accordingly and let me "
+        "know if you need any help. We need to act fast on this one."
+    ),
+    "✅ Newsletter (legit)": (
+        "This month's CSUB Computer Science newsletter: read about the "
+        "latest student research projects, faculty publications, and "
+        "upcoming events at csub.edu/cs/news. Thanks for subscribing!"
+    ),
+}
+
+
+# =============================================================================
+# SESSION STATE
 # =============================================================================
 
-DEMO_OBVIOUS_SCAM = (
-    "Subject: Urgent: Your Account Has Been Locked\n"
-    "Dear Customer,\n\n"
-    "We noticed suspicious activity on your account. For your protection, "
-    "your account has been temporarily locked. Please click here to verify "
-    "your identity and unlock your account within 24 hours, or your account "
-    "will be permanently deleted.\n\n"
-    "Verify Account: bit.ly/account-unlock\n\n"
-    "Thanks,\nThe Security Team"
-)
-
-DEMO_SUBTLE_SCAM = (
-    "Hi! I hope you're doing well. I'm in a bit of a bind and need a small "
-    "favor. I'm traveling and can't get to my bank. Could you pick up a "
-    "couple of Amazon gift cards (about $200 total) and send me the codes? "
-    "I'll pay you back as soon as I'm home. Please don't tell anyone — "
-    "it's a surprise for the family."
-)
-
-DEMO_LEGIT = (
-    "Hey Christian, just a reminder that our team meeting is scheduled for "
-    "Thursday at 2pm in the conference room. Please let me know if you "
-    "can't make it. Looking forward to seeing you there.\n\nBest,\nSarah"
-)
+if "message_input" not in st.session_state:
+    st.session_state.message_input = ""
+if "auto_scan" not in st.session_state:
+    st.session_state.auto_scan = False
+if "last_example" not in st.session_state:
+    st.session_state.last_example = None
 
 
 # =============================================================================
 # HEADER
 # =============================================================================
 
-st.title("🛡️ ClearShield")
-st.caption("Scam Message Detector — paste a message to see what's suspicious and why.")
+st.markdown(
+    """
+    <div class="clearshield-header">
+        <div class="clearshield-logo">🛡️</div>
+        <h1 class="clearshield-title">ClearShield</h1>
+    </div>
+    <p class="clearshield-tagline">
+        Paste any suspicious email or text message. See if it's a scam — and why.
+    </p>
+    """,
+    unsafe_allow_html=True,
+)
 
 st.divider()
 
 
 # =============================================================================
-# DEMO PRESET BUTTONS
+# MAIN LAYOUT — SIDE BY SIDE (no scrolling to see results)
 # =============================================================================
 
-st.markdown("**Try a demo message:**")
-col1, col2, col3, col4 = st.columns(4)
-
-if "message_text_area" not in st.session_state:
-    st.session_state.message_text_area = ""
-
-with col1:
-    if st.button("🚨 Obvious scam", use_container_width=True):
-        st.session_state.message_text_area = DEMO_OBVIOUS_SCAM
-with col2:
-    if st.button("⚠️ Subtle scam", use_container_width=True):
-        st.session_state.message_text_area = DEMO_SUBTLE_SCAM
-with col3:
-    if st.button("✅ Legitimate", use_container_width=True):
-        st.session_state.message_text_area = DEMO_LEGIT
-with col4:
-    if st.button("🎲 Generate scam email", use_container_width=True):
-        st.session_state.message_text_area = generate_scam_email()
+left_col, right_col = st.columns([1, 1], gap="large")
 
 
-# =============================================================================
-# MESSAGE INPUT
-# =============================================================================
+# -----------------------------------------------------------------------------
+# LEFT: INPUT
+# -----------------------------------------------------------------------------
 
-text = st.text_area(
-    "Or paste your own message:",
-    height=220,
-    placeholder="Paste an email or text message here...",
-    key="message_text_area",
-)
+with left_col:
+    st.markdown("### 📥 Message to scan")
 
-scan_clicked = st.button("🔍 Scan Message", type="primary", use_container_width=True)
+    # Example library dropdown — much more compact than 3 buttons
+    example_key = st.selectbox(
+        "Try an example from our test library",
+        options=["— Select an example —"] + list(EXAMPLE_MESSAGES.keys()),
+        index=0,
+        help="A curated library of 12 example messages — 7 scam patterns and "
+             "5 legitimate messages — used in our calibration study.",
+    )
 
+    if example_key != "— Select an example —":
+        if st.session_state.last_example != example_key:
+            st.session_state.message_input = EXAMPLE_MESSAGES[example_key]
+            st.session_state.last_example = example_key
+            st.session_state.auto_scan = True
 
-# =============================================================================
-# RESULT DISPLAY
-# =============================================================================
+    text = st.text_area(
+        "Or paste your own message",
+        value=st.session_state.message_input,
+        height=280,
+        placeholder="Paste an email or text message here...",
+        key="message_text_area",
+        label_visibility="visible",
+    )
 
-def render_result(result: dict, original_text: str):
-    """Render the scan result with color-coded status and details."""
-
-    score = result["score"]
-    label = result["label"]
-    reasons = result["reasons"]
-    evidence = result["evidence"]
-
-    # --- Color-coded status banner ---
-    if label == "Likely Scam":
-        st.error(f"### 🚨 {label} — Risk Score: {score}/100")
-    elif label == "Unsure":
-        st.warning(f"### ⚠️ {label} — Risk Score: {score}/100")
-    else:
-        st.success(f"### ✅ {label} — Risk Score: {score}/100")
-
-    # --- Risk score progress bar ---
-    st.progress(score / 100)
-
-    # --- Reasons ---
-    st.subheader("Why this was flagged")
-    if reasons:
-        for reason in reasons:
-            st.markdown(f"- {reason}")
-    else:
-        st.markdown("- No suspicious patterns detected.")
-
-    # --- Highlighted message ---
-    if evidence and label != "Likely Legit":
-        st.subheader("Suspicious phrases highlighted")
-        st.markdown(
-            "**Legend:** :red[High-risk] • :orange[Medium-risk] • :yellow[Lower-risk]"
-        )
-        highlighted = highlight_suspicious(original_text)
-        st.markdown(highlighted)
-
-    # --- Evidence (technical detail, collapsible) ---
-    if evidence:
-        with st.expander("🔬 Detection evidence (technical detail)"):
-            st.json(evidence)
-
-    # --- Educational note (for scams only) ---
-    if label == "Likely Scam":
-        with st.expander("💡 Why does this work? Learn the pattern."):
-            st.markdown(
-                """
-                Scammers use these patterns because they bypass careful thinking:
-
-                - **Urgency language** ("act now", "within 24 hours") triggers
-                  fear and makes you skip verification steps.
-                - **Credential requests** mimic legitimate companies but real
-                  organizations almost never ask for passwords or SSN by email.
-                - **URL shorteners** hide the true destination of a link, so
-                  you can't tell where you're being sent.
-
-                When in doubt: do not click, do not reply, and contact the
-                supposed sender through a known-good channel (their website,
-                phone number on the back of your card, etc.) to verify.
-                """
-            )
+    scan_clicked = st.button(
+        "🔍  Scan Message",
+        type="primary",
+        use_container_width=True,
+    )
 
 
-if scan_clicked:
-    if not text.strip():
-        st.warning("Please paste a message to scan, or pick a demo above.")
-    else:
+# -----------------------------------------------------------------------------
+# RIGHT: RESULT
+# -----------------------------------------------------------------------------
+
+with right_col:
+    st.markdown("### 📊 Result")
+
+    # Trigger scan if button clicked or auto-scan flag set from example
+    should_scan = scan_clicked or st.session_state.auto_scan
+    if should_scan:
+        st.session_state.auto_scan = False  # consume flag
+
+    if should_scan and text.strip():
         result = scan_text(text)
-        render_result(result, text)
+        score = result["score"]
+        label = result["label"]
+        reasons = result["reasons"]
+        evidence = result["evidence"]
+
+        # --- Color-coded result card ---
+        if label == "Likely Scam":
+            css_class = "result-scam"
+            icon = "🚨"
+            color = "#DC2626"
+        elif label == "Unsure":
+            css_class = "result-unsure"
+            icon = "⚠️"
+            color = "#B45309"
+        else:
+            css_class = "result-legit"
+            icon = "✅"
+            color = "#15803D"
+
+        st.markdown(
+            f"""
+            <div class="result-card {css_class}">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <p class="result-label" style="color:{color};">{icon} {label}</p>
+                        <p style="margin:0.25rem 0 0 0; color:#475569;">Risk Score</p>
+                        <p class="result-score" style="color:{color};">{score}<span style="font-size:1.2rem; color:#64748B;"> / 100</span></p>
+                    </div>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        # --- Reasons ---
+        st.markdown("**Why this was flagged:**")
+        if reasons:
+            for reason in reasons:
+                st.markdown(f"- {reason}")
+
+        # --- Highlighted phrases (only show if Scam or Unsure) ---
+        if evidence and label != "Likely Legit":
+            with st.expander("🔍 See suspicious phrases highlighted", expanded=False):
+                highlighted = highlight_suspicious(text)
+                st.markdown(highlighted)
+
+        # --- Evidence (technical detail) ---
+        if evidence:
+            with st.expander("🔬 Detection evidence (technical detail)"):
+                st.json(evidence)
+
+        # --- Educational explainer (scams only) ---
+        if label == "Likely Scam":
+            with st.expander("💡 Why does this scam pattern work?"):
+                st.markdown(
+                    """
+                    Scammers use these patterns because they bypass careful thinking:
+
+                    - **Urgency language** triggers fear and short-circuits verification.
+                    - **Credential requests** mimic real companies, but legitimate
+                      organizations almost never ask for passwords or SSN by email or text.
+                    - **URL shorteners** hide the true destination of a link — so you
+                      can't see where you'd really be sent.
+
+                    **When in doubt:** do not click, do not reply. Contact the supposed
+                    sender through a known-good channel (their website, the phone number
+                    on the back of your card) to verify.
+                    """
+                )
+
+    elif should_scan and not text.strip():
+        st.warning("⚠️ Please paste a message or choose an example first.")
+    else:
+        # Empty state
+        st.markdown(
+            """
+            <div style="padding:2rem; text-align:center; color:#94A3B8; border:2px dashed #E2E8F0; border-radius:0.75rem;">
+                <div style="font-size:3rem; margin-bottom:0.5rem;">📭</div>
+                <p style="margin:0; font-weight:500;">No message scanned yet</p>
+                <p style="margin:0.25rem 0 0 0; font-size:0.9rem;">
+                    Paste a message on the left, or select an example to see how it works.
+                </p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
 
 # =============================================================================
@@ -177,8 +388,12 @@ if scan_clicked:
 # =============================================================================
 
 st.divider()
-st.caption(
-    "ClearShield is a CSUB Senior Project by Christian Schmiedel. "
-    "Detection is rule-based and explainable — designed to teach you the "
-    "patterns scammers use so you can spot them yourself."
+st.markdown(
+    """
+    <p class="footer-text">
+        ClearShield • CSUB Senior Project by Christian Schmiedel •
+        Rule-based, explainable scam detection.
+    </p>
+    """,
+    unsafe_allow_html=True,
 )
